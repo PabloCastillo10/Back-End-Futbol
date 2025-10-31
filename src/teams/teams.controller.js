@@ -11,12 +11,13 @@ export const createTeam = async (req, res) => {
         await validarPermisos(req);
 
         let imagenUrl;
+
         if (req.file && req.file.buffer) {
-            imagenUrl = await subirImagenImgbb(req.file.buffer);
+            imagenUrl = await subirImagenImgbb(req.file.buffer); // archivo
         } else if (data.imagen && data.imagen.startsWith("http")) {
-            imagenUrl = data.imagen;
+            imagenUrl = data.imagen; // URL directa
         } else {
-            return res.status(400).json({ message: "Debe proporcionar una imagen o una url" })
+            return res.status(400).json({ message: "Debe proporcionar una imagen o una URL" });
         }
 
         const nuevoEquipo = new teamModel({
@@ -74,7 +75,7 @@ export const getTeamsLeague = async (req, res) => {
         }
 
         //CHATGPT
-        const teams = await teamModel.find({league: league._id}, "name imagen") //busca todos los equipos de esa liga
+        const teams = await teamModel.find({league: league._id}, "name imagen historia estadio").sort({name: 1}) // 1 = ascendente (A a Z), -1 = descendente (Z a A)
 
         res.status(200).json({
             success: true,
@@ -84,7 +85,7 @@ export const getTeamsLeague = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             message: "Hubo un error al obtener la lista de equipos de esta liga",
-            error: error.msg
+            error: error.message
         })
     }
 }

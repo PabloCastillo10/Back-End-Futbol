@@ -10,6 +10,7 @@ export const validarPermisos  = async (req) => {
     }
 }
 
+
 export const validarExistenciaLiga = async (id = '') => {
     const liga = await leagueModel.findById(id);
 

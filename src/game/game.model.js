@@ -31,11 +31,11 @@ const GameSchema = new Schema({
     },
     golesLocal: {
         type: Number,
-        default: 0
+        default: null
     },
     golesVisitante: {
         type: Number,
-        default: 0
+        default: null
     },
     
 }, {

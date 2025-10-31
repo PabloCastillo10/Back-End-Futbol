@@ -7,6 +7,9 @@ import authRoutes from "../src/auth/auth.routes.js";
 import leagueRoutes from "../src/league/league.routes.js";
 import teamsRoutes from "../src/teams/teams.routes.js"
 import gamesRoutes from "../src/game/game.routes.js"
+import CalificacionesRoutes from "../src/calificacion/calificacion.routes.js"
+import noticiasRoutes from "../src/noticias/noticias.routes.js"
+import dashboardUserRoutes from "../src/Dashboard/dashboardUser.routes.js"
 import { createAdmin } from "../src/auth/auth.controller.js";
 const configMiddleware = (app) => {
     app.use(express.urlencoded({ extended: false }));
@@ -21,6 +24,9 @@ const configurarRutas = (app) => {
     app.use("/deportes/league", leagueRoutes);
     app.use("/deportes/teams", teamsRoutes);
     app.use("/deportes/games", gamesRoutes);
+    app.use("/deportes/calificacion", CalificacionesRoutes)
+    app.use("/deportes/noticias", noticiasRoutes)
+    app.use("/deportes/user", dashboardUserRoutes)
 }
 
 const connectionDB = async () => {

@@ -25,8 +25,7 @@ const TeamSchema = new Schema({
         unique: [true, "Este estadio existe porfavor intenta de nuevo"]
     },
     historia: {
-        type: String,
-        required: [true, "Porfavor ingresa la historia del equipo"],
+        type: String
     },
     status: {
         type: Boolean,

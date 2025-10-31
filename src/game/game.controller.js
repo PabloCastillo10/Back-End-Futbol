@@ -12,26 +12,47 @@ export const createGame = async (req, res) => {
 
         const league = await leagueModel.findOne({ name: data.league });
         if (!league) {
+            console.log(data.league, "La liga no existe");
             return res.status(404).json({ message: "La liga no existe" });
         }
 
         const equipoLocal = await teamModel.findOne({ name: data.equipoLocal });
         if (!equipoLocal) {
+            console.log(data.equipoLocal, "El equipo local no existe");
             return res.status(404).json({ message: "El equipo local no existe" });
         }
 
         const equipoVisitante = await teamModel.findOne({ name: data.equipoVisitante });
         if (!equipoVisitante) {
+            console.log(data.equipoVisitante, "El equipo visitante no existe");
             return res.status(404).json({ message: "El equipo visitante no existe" });
         }
 
         if (equipoLocal._id.equals(equipoVisitante._id)) {
+            console.log(equipoLocal._id.equals(equipoVisitante._id), "Un equipo no puede jugar contra sí mismo");
             return res.status(400).json({ message: "Un equipo no puede jugar contra sí mismo" });
         }
 
         const partidoCreado = await gameModel.findOne({ league: league._id, equipoLocal: equipoLocal._id, equipoVisitante: equipoVisitante._id });
         if (partidoCreado) {
+            console.log(partidoCreado, "El partido ya existe");
             return res.status(400).json({ message: "El partido ya existe" });
+        }
+
+        const partidoLocal = await gameModel.findOne({league: league._id, jornada: data.jornada, 
+            $or: [{equipoLocal: equipoLocal._id}, {equipoVisitante: equipoLocal._id}]
+        });
+
+        if (partidoLocal) {
+            return res.status(400).json({ message: `El equipo ${equipoLocal.name} ya tiene un partido en la jornada ${data.jornada}` });
+        }
+
+        const partidoVisitante = await gameModel.findOne({league: league._id, jornada: data.jornada, 
+            $or: [{equipoLocal: equipoVisitante._id}, {equipoVisitante: equipoVisitante._id}]
+        });
+
+        if (partidoVisitante) {
+            return res.status(400).json({ message: `El equipo ${equipoVisitante.name} ya tiene un partido en la jornada ${data.jornada}` });
         }
 
         const nuevoPartido = new gameModel({
@@ -128,7 +149,7 @@ export const getGameByName = async (req, res) => {
             message: "Partidos encontrados correctamente",
             total: count,
             games
-            
+
         })
 
     } catch (error) {
@@ -144,10 +165,10 @@ export const listGameByLeague = async (req, res) => {
     try {
         const { league } = req.params;
         const leagueDoc = await leagueModel.findOne({ name: league })
-        
+
         const games = await gameModel.find({ league: leagueDoc._id })
-        .populate("equipoLocal", "name")
-        .populate("equipoVisitante", "name");
+            .populate("equipoLocal", "name")
+            .populate("equipoVisitante", "name");
 
         const count = await gameModel.countDocuments({ league: leagueDoc._id });
         res.status(200).json({
@@ -173,6 +194,22 @@ export const updateGame = async (req, res) => {
 
         const updateData = { ...data };
 
+        if (data.equipoLocal) {
+            const localTeam = await teamModel.findOne({ name: data.equipoLocal });
+            if (!localTeam) {
+                return res.status(404).json({ message: "El equipo local no existe" });
+            }
+            updateData.equipoLocal = localTeam._id;
+        }
+
+        if (data.equipoVisitante) {
+            const visitanteTeam = await teamModel.findOne({ name: data.equipoVisitante });
+            if (!visitanteTeam) {
+                return res.status(404).json({ message: "El equipo visitante no existe" });
+            }
+            updateData.equipoVisitante = visitanteTeam._id;
+        }
+
         const gameUpdated = await gameModel.findByIdAndUpdate(
             id,
             updateData,
@@ -195,17 +232,51 @@ export const updateGame = async (req, res) => {
     }
 }
 
+export const getSearchFechaHora = async (req, res) => {
+    try {
+        const { league, FechaHora } = req.params;
+
+        const leagueDoc = await leagueModel.findOne({ name: league })
+
+        //crear rango de inicio fin del dia para convertir la fecha en formato iso a normal
+
+        const start = new Date(FechaHora);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(FechaHora);
+        end.setUTCHours(23, 59, 59, 999);
+
+        const leagueId = leagueDoc._id;
+        const games = await gameModel.find({ league: leagueId, FechaHora: { $gte: start, $lte: end } })
+            .populate("league", "name")
+            .populate("equipoLocal", "name imagen estadio")
+            .populate("equipoVisitante", "name imagen");
+
+
+        res.status(200).json({
+            success: true,
+            message: "Listado de partidos",
+            games
+        })
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            message: "Error al intentar obtener los partidos",
+            error: error.message
+        })
+    }
+}
+
 export const getSearchJornada = async (req, res) => {
     try {
-        const {jornada, league} = req.params;
+        const { jornada, league } = req.params;
 
         const leagueDoc = await leagueModel.findOne({ name: league })
 
         const leagueId = leagueDoc._id;
-        const games = await gameModel.find({ jornada: jornada, league: leagueId })
+        const games = await gameModel.find({ jornada: Number(jornada), league: leagueId })
             .populate("league", "name")
-            .populate("equipoLocal", "name")
-            .populate("equipoVisitante", "name");
+            .populate("equipoLocal", "name imagen")
+            .populate("equipoVisitante", "name imagen");
 
         const count = await gameModel.countDocuments({ jornada: jornada });
         res.status(200).json({
@@ -227,21 +298,16 @@ export const getSearchJornada = async (req, res) => {
 export const createGameResult = async (req, res) => {
     try {
         const { id } = req.params;
-        let {golesLocal, golesVisitante} = req.body;
+        let { golesLocal, golesVisitante } = req.body;
 
         golesLocal = Number(golesLocal);
         golesVisitante = Number(golesVisitante);
         await validarPermisos(req);
 
-        const gameResult = await gameModel.findByIdAndUpdate(
-            id,
-            {golesLocal, golesVisitante},
-            { new: true }
-        )
-
-        .populate("league", "name")
+        const gameResult = await gameModel.findById(id)
+            .populate("league", "name")
             .populate("equipoLocal", "name")
-            .populate("equipoVisitante", "name")
+            .populate("equipoVisitante", "name");
 
         if (!gameResult) {
             return res.status(404).json({
@@ -249,12 +315,19 @@ export const createGameResult = async (req, res) => {
                 message: "No se ha encontrado el partido"
             });
         }
-        
+
+        if (gameResult.golesLocal !== null && gameResult.golesVisitante !== null) {
+            return res.status(400).json({ message: "Este partido ya tiene resultado" });
+        }
+        gameResult.golesLocal = golesLocal;
+        gameResult.golesVisitante = golesVisitante;
+        await gameResult.save();
+
 
         const updateTable = async (teamId, leagueId, golesAFavor, golesEnContra, resultado) => {
             let table = await tableModel.findOne({ team: teamId, league: leagueId });
             if (!table) {
-                table = new tableModel({team: teamId, league: leagueId});
+                table = new tableModel({ team: teamId, league: leagueId });
             }
             table.partidosJugados += 1;
             table.golesAFavor += golesAFavor;
@@ -269,16 +342,8 @@ export const createGameResult = async (req, res) => {
                 table.puntos += 1;
             } else if (resultado === "perdido") {
                 table.partidosPerdidos += 1;
-                table.puntos += 0;
             }
             await table.save();
-        }
-
-        if (gameResult.golesLocal !== null && gameResult.golesVisitante !== null) {
-            return res.status(400).json({
-                success: false,
-                message: "Este partido ya tiene resultado registrado"
-            });
         }
 
         if (golesLocal > golesVisitante) {
@@ -294,7 +359,7 @@ export const createGameResult = async (req, res) => {
         res.status(200).json({
             success: true,
             message: "Resultado del partido creado correctamente",
-            gameResult: gameResult
+            game: gameResult
         })
 
     } catch (error) {
@@ -322,17 +387,17 @@ export const getTableLeague = async (req, res) => {
                 golesAFavor: -1 //si empata, mas goles a favor
             })
 
-            // para que se añada la posicion en la tabla
-            table = table.map((item, index) => ({
+        // para que se añada la posicion en la tabla
+        table = table.map((item, index) => ({
             posicion: index + 1, // empieza desde 1
             ...item.toObject()   // convertir a objeto plano
-            }));
+        }));
 
-            res.status(200).json({
-                success: true,
-                message: "Tabla de clasificacion",
-                table
-            })
+        res.status(200).json({
+            success: true,
+            message: `Tabla de clasificacion de la ${league}`,
+            table
+        })
     } catch (error) {
         console.log(error);
         res.status(500).json({

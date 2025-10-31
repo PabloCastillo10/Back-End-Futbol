@@ -8,14 +8,16 @@ export const createLeague = async (req, res) => {
         const user = req.user;
         await validarPermisos(req);
 
-         let imagenUrl;
+        let imagenUrl;
+
         if (req.file && req.file.buffer) {
-            imagenUrl = await subirImagenImgbb(req.file.buffer);
+            imagenUrl = await subirImagenImgbb(req.file.buffer); // archivo
         } else if (data.imagen && data.imagen.startsWith("http")) {
-            imagenUrl = data.imagen;
+            imagenUrl = data.imagen; // URL directa
         } else {
             return res.status(400).json({ message: "Debe proporcionar una imagen o una URL" });
         }
+
 
         const nuevaLiga = new leagueModel({
             name: data.name,
@@ -57,11 +59,11 @@ export const getAllLeagues = async (req, res) => {
 
 export const getLeagueByName = async (req, res) => {
     try {
-        const {name} = req.params;
+        const { name } = req.params;
 
-        const liga = await leagueModel.findOne({name});
+        const liga = await leagueModel.findOne({ name });
 
-        if(!liga) {
+        if (!liga) {
             return res.status(400).json({
                 message: "No se ha encontrado la liga"
             })
@@ -86,19 +88,19 @@ export const updateLeague = async (req, res) => {
         const id = req.params.id;
         const data = req.body;
         const user = req.user;
-        
+
         await validarPermisos(req);
 
-        const updateData = {...data};
+        const updateData = { ...data };
 
         if (req.file && req.file.buffer) {
             const nuevaUrlImagen = await subirImagenImgbb(req.file.buffer);
             updateData.imagen = nuevaUrlImagen;
         }
-        
+
         const ligaActualizada = await leagueModel.findByIdAndUpdate(id,
             updateData,
-            {new: true}
+            { new: true }
         )
 
         res.status(200).json({
@@ -121,7 +123,6 @@ export const deleteLeague = async (req, res) => {
 
     try {
         const liga = await leagueModel.findById(id)
-        await validarExistenciaLiga(id);
         await validarPermisos(req);
 
         const ligaEliminada = await leagueModel.findByIdAndDelete(id);
